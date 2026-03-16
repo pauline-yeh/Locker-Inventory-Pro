@@ -1,0 +1,6 @@
+# Git ignore for Locker Inventory Pro
+node_modules/
+.DS_Store
+*.log
+/tmp/
+.gemini/

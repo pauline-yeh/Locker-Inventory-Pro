@@ -1,0 +1,19 @@
+{
+  "skill_name": "locker-search",
+  "evals": [
+    {
+      "id": 1,
+      "name": "search-screws",
+      "prompt": "我想找螺絲，櫃子裡在哪裡有螺絲？請顯示清單介面。",
+      "expected_output": "Agent triggers the locker-search skill, runs data extraction, and presents an HTML interface with '螺絲' results.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "search-m3-spec",
+      "prompt": "電子儲物櫃裡面有 M3 規格的零件嗎？分別在哪個位置？",
+      "expected_output": "Agent triggers the locker-search skill and generates an interface filtering for 'M3'.",
+      "files": []
+    }
+  ]
+}

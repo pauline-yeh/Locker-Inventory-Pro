@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>電子儲物櫃物料查詢系統</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f3f4f6;
+            --sidebar-bg: #ffffff;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --border: #d1d5db;
+            --loc-top1-bg: #fee2e2; --loc-top1-border: #fca5a5; --loc-top1-text: #991b1b;
+            --loc-top2-bg: #ffedd5; --loc-top2-border: #fdba74; --loc-top2-text: #9a3412;
+            --loc-top3-bg: #fef9c3; --loc-top3-border: #fde047; --loc-top3-text: #854d0e;
+            --loc-mid-bg: #dcfce7; --loc-mid-border: #86efac; --loc-mid-text: #166534;
+            --loc-bot1-bg: #e0f2fe; --loc-bot1-border: #7dd3fc; --loc-bot1-text: #075985;
+            --loc-bot2-bg: #f5f3ff; --loc-bot2-border: #ddd6fe; --loc-bot2-text: #5b21b6;
+        }
+        body { font-family: 'Inter', 'Noto Sans TC', sans-serif; background-color: var(--bg); color: var(--text-main); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        .sidebar { 
+            width: 25%; background: var(--sidebar-bg); border-right: 1px solid var(--border); 
+            display: flex; flex-direction: column; padding: 0.5rem 0.4rem; 
+            box-shadow: 10px 0 30px rgba(0,0,0,0.03); z-index: 10; height: 100vh;
+            overflow: hidden; /* Enforce no scroll */
+        }
+        .main { width: 75%; padding: 1.25rem 1.75rem; overflow-y: auto; display: flex; flex-direction: column; }
+        
+        h1 { margin: 0; font-size: 1.25rem; font-weight: 800; color: #1e3a8a; letter-spacing: -0.5px; line-height: 1; }
+        .sidebar p { margin: 1px 0 0; color: var(--text-muted); font-weight: 600; font-size: 0.7rem; }
+        
+        .interactive-diagram { 
+            display: flex; flex-direction: column; gap: 4px; padding: 4px; 
+            background: #ffffff; border: 1px solid #e5e7eb; border-radius: 0.75rem; 
+            margin-top: 0.5rem; overflow: hidden; flex: 1;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+            justify-content: space-between; /* Fill vertical space */
+        }
+        
+        .cabinet-section { 
+            border: 1px solid rgba(0,0,0,0.1); border-radius: 0.5rem; margin-bottom: 0.5rem;
+            display: flex; flex-direction: column; overflow: hidden;
+            flex: none; /* Let content dictate or use flex carefully */
+        }
+        .cabinet-title { 
+            font-size: 0.95rem; font-weight: 800; padding: 4px; text-align: center;
+            background: rgba(255,255,255,0.2); border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        
+        .shelf { padding: 0.3rem 0.4rem; border-radius: 0.25rem; margin: 1px; }
+        .shelf-name { font-size: 0.82rem; font-weight: 800; text-align: center; margin-bottom: 4px; opacity: 0.9; }
+        
+        .box-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(4.5em, 1fr)); gap: 4px; }
+        .box { 
+            border: 2px solid; border-radius: 0.3rem; padding: 4px 1px; 
+            font-size: 0.72rem; font-weight: 800; text-align: center; cursor: pointer; 
+            display: flex; align-items: center; justify-content: center; line-height: 1.1; 
+            color: #1f2937; transition: all 0.2s;
+            min-height: 28px;
+        }
+        .box:hover { transform: scale(1.05); filter: brightness(0.95); z-index: 5; }
+        .box:hover { transform: scale(1.05); border-color: #3b82f6; color: #1e40af; z-index: 5; }
+        
+        .box-active { 
+            border-color: #ef4444 !important; 
+            border-width: 4px !important;
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.6); 
+            transform: scale(1.15); 
+            z-index: 20; 
+            background-color: #fef2f2 !important;
+            animation: pulse-active 1.5s infinite;
+        }
+
+        @keyframes pulse-active {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        
+        .search-container { 
+            position: relative; margin-bottom: 2rem; 
+            max-width: 900px; margin-left: auto; margin-right: auto;
+            width: 100%; display: flex; gap: 12px; align-items: center;
+        }
+        .search-wrapper { position: relative; flex: 1; }
+        .search-icon {
+            position: absolute; left: 1.25rem; top: 50%; transform: translateY(-50%);
+            color: #9ca3af; pointer-events: none; width: 22px; height: 22px;
+        }
+        #searchInput { 
+            width: 100%; padding: 1rem 1.25rem 1rem 3.25rem; border-radius: 1.25rem; 
+            border: 2px solid #e5e7eb; font-size: 1.1rem; outline: none; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-sizing: border-box; background: white;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            font-family: inherit;
+        }
+        #searchInput:focus { border-color: #3b82f6; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.1); }
+        
+        .btn-clear-main {
+            padding: 0 1.5rem; height: 3.5rem; background: #dcfce7; color: #166534; 
+            border: 2px solid #86efac; border-radius: 1.25rem; font-weight: 800; cursor: pointer;
+            transition: 0.2s; white-space: nowrap; font-size: 1rem;
+            display: flex; align-items: center; gap: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+        .btn-clear-main:hover { background: #bbf7d0; border-color: #4ade80; transform: translateY(-1px); }
+        .btn-clear-main svg { width: 18px; height: 18px; }
+        #searchInput::placeholder { color: #9ca3af; font-weight: 500; }
+        
+        .stats { font-size: 1.1rem; color: #4b5563; margin-bottom: 1.8rem; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+        .stats::before { content: ""; display: inline-block; width: 4px; height: 1.2em; background: #3b82f6; border-radius: 2px; }
+        
+        .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+        
+        /* THE MATERIAL CARD - PREMIUM REDESIGN */
+        .card { 
+            background: #ffffff; border-radius: 1.5rem; padding: 1.5rem; 
+            position: relative; border: 3px solid transparent; transition: 0.3s;
+            display: flex; flex-direction: column; min-height: 240px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); cursor: pointer;
+        }
+        .card:hover { transform: translateY(-4px); box-shadow: 0 12px 25px rgba(0,0,0,0.1); border-color: rgba(37, 99, 235, 0.2); }
+        .card.highlighted { border-color: #2563eb; background: #eff6ff !important; box-shadow: 0 0 20px rgba(37, 99, 235, 0.2); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+        
+        .item-name { font-weight: 800; font-size: 1.4rem; color: #111827; margin-bottom: 0.5rem; line-height: 1.2; }
+        .item-row { font-size: 0.95rem; color: #4b5563; margin: 4px 0; font-weight: 700; letter-spacing: 0.2px; }
+        .item-spec { font-size: 1rem; color: #374151; margin: 10px 0; line-height: 1.4; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .item-note { 
+            font-style: italic; color: #6b7280; font-size: 0.85rem; 
+            background: rgba(0,0,0,0.03); border-radius: 0.5rem; padding: 0.5rem 0.75rem;
+            margin-bottom: 1.5rem; display: block; border: 1px solid rgba(0,0,0,0.05);
+        }
+        
+        .qty-badge { 
+            position: absolute; top: 1rem; right: 1rem;
+            background: white; color: #1e3a8a; font-weight: 900; padding: 0.4rem 0.8rem;
+            border-radius: 0.8rem; font-size: 1.1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border: 2px solid #e2e8f0;
+        }
+
+        .card-footer {
+            display: flex; justify-content: space-between; align-items: flex-end;
+            margin-top: auto; padding-top: 0.75rem; gap: 8px;
+            min-height: 3.5rem; /* Ensure enough space for 2 lines + buttons without shifting */
+        }
+        
+        .card-actions { 
+            display: flex; gap: 6px; flex-shrink: 0; align-items: flex-end;
+        }
+        
+        .btn-action {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 3rem; height: 3rem; border-radius: 0.9rem; 
+            cursor: pointer; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none; color: white; flex-direction: column; font-size: 0.72rem; 
+            font-weight: 600; gap: 1px;
+        }
+        
+        .btn-withdraw { 
+            background: #2563eb;
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
+        }
+        .btn-withdraw:hover { background: #1d4ed8; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(37, 99, 235, 0.3); }
+        
+        .btn-return { 
+            background: #10b981; 
+            box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);
+        }
+        .btn-return:hover { background: #059669; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(16, 185, 129, 0.3); }
+        
+        .btn-action svg { width: 1.1rem; height: 1.1rem; stroke-width: 3; }
+
+        .loc-tag-dashed { 
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+            overflow: hidden; border: 2px dashed #cbd5e1; 
+            border-radius: 0.75rem; padding: 0.4rem 0.6rem; background: rgba(255,255,255,0.6);
+            font-weight: 700; color: #334155; font-size: 0.85rem; line-height: 1.25;
+            max-height: 2.5rem; /* Strict 2-line height */
+            flex: 1;
+        }
+
+        .hint-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.6rem; padding: 0.75rem; margin-top: auto; }
+        .hint-label { font-size: 0.7rem; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .hint-tag { font-size: 0.8rem; color: #1e3a8a; font-weight: 800; line-height: 1.4; }
+
+        .shelf { padding: 0.5rem 0; }
+        .shelf-name { font-size: 0.95rem; opacity: 0.9; font-weight: 800; margin-bottom: 6px; color: inherit; }
+        
+        /* Highlight selected box */
+        .box-active { border-color: #2563eb !important; background: #eff6ff !important; color: #1e40af !important; box-shadow: 0 0 10px rgba(37, 99, 235, 0.2); }
+        
+        ::-webkit-scrollbar { width: 10px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; border: 3px solid var(--bg); }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <header>
+            <h1>📦 儲物櫃系統</h1>
+            <p>Locker Inventory Pro</p>
+        </header>
+        <div id="diagram" class="interactive-diagram"></div>
+        <div class="hint-box">
+            <div class="hint-label">📍 目前位置路徑</div>
+            <div id="hint" class="hint-tag">查看所有區域 (全數)</div>
+        </div>
+    </aside>
+    <main class="main">
+        <div class="search-container">
+            <div class="search-wrapper">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" id="searchInput" placeholder="在此輸入品名、規格或料號搜尋...">
+            </div>
+            <button onclick="clearFilter()" class="btn-clear-main">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+                清除篩選
+            </button>
+        </div>
+        <div id="count" class="stats">系統正在準備資料...</div>
+        <div id="grid" class="grid"></div>
+    </main>
+
+    <!-- DATA BLOCKS (Safe from Syntax Errors) -->
+    <script type="application/json" id="raw-data">__DATA__</script>
+    <script type="application/json" id="raw-config">__CONFIG__</script>
+
+    <script>
+        // Use JSON.parse for absolute safety against JS syntax issues
+        const data = JSON.parse(document.getElementById('raw-data').textContent);
+        const config = JSON.parse(document.getElementById('raw-config').textContent);
+        
+        const grid = document.getElementById('grid');
+        const diagram = document.getElementById('diagram');
+        const hint = document.getElementById('hint');
+        let currentBox = '';
+
+        function build() {
+            diagram.innerHTML = '';
+            config.forEach(c => {
+                const cab = document.createElement('div');
+                cab.className = 'cabinet-section';
+                // Find a common base color for the cabinet title from its first layer
+                const baseColor = c.layers[0] ? c.layers[0].textColor : 'inherit';
+                const baseBg = c.layers[0] ? c.layers[0].bgColor : 'transparent';
+                
+                cab.style.borderColor = baseColor;
+                cab.style.background = baseBg;
+                
+                cab.innerHTML = `<div class="cabinet-title" style="color:${baseColor}">${c.cabinetName}</div>`;
+                
+                c.layers.forEach(l => {
+                    const shelf = document.createElement('div'); 
+                    shelf.className = 'shelf';
+                    shelf.style.background = l.bgColor;
+                    shelf.style.color = l.textColor;
+                    shelf.innerHTML = '<div class="shelf-name">' + l.name + '</div>';
+                    
+                    const boxes = document.createElement('div'); 
+                    boxes.className = 'box-grid';
+                    
+                    l.boxes.forEach(b => {
+                        const box = document.createElement('div'); 
+                        box.className = 'box';
+                        box.dataset.id = b;
+                        box.innerHTML = b.split('\n').join('<br>');
+                        
+                        box.style.setProperty('background-color', l.bgColor, 'important');
+                        box.style.setProperty('border-color', l.borderColor, 'important');
+                        
+                        box.onclick = (e) => { 
+                            e.stopPropagation(); 
+                            setFilter(b); 
+                        };
+                        boxes.appendChild(box);
+                    });
+                    shelf.appendChild(boxes); cab.appendChild(shelf);
+                });
+                diagram.appendChild(cab);
+            });
+        }
+
+        function setFilter(boxName) {
+            currentBox = boxName;
+            
+            // Reconstruct full path
+            let fullPath = '查看所有區域 (全數)';
+            if (boxName) {
+                config.forEach(c => {
+                    c.layers.forEach(l => {
+                        if (l.boxes.includes(boxName) || l.boxes.some(b => b.replace(/\n/g,' ') === boxName)) {
+                            fullPath = `${c.cabinetName} > ${l.name} > <span style="color:#ef4444">${boxName}</span>`;
+                        }
+                    });
+                });
+            }
+            hint.innerHTML = fullPath;
+            
+            document.querySelectorAll('.box').forEach(b => {
+                const isMatch = b.dataset.id === boxName;
+                b.classList.toggle('box-active', isMatch);
+                if (isMatch) b.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+            apply();
+        }
+
+        function updateQty(id, delta) {
+            const item = data.find(i => i.ID === id);
+            if (!item) return;
+            
+            // Handle negative quantity if needed, but here we just update
+            let currentVal = parseInt(item.數量) || 0;
+            item.數量 = Math.max(0, currentVal + delta).toString();
+            
+            apply(); // Re-render material list while keeping filters
+        }
+
+        function clearFilter() { 
+            currentBox = ''; 
+            document.getElementById('searchInput').value = '';
+            hint.innerHTML = '查看所有區域 (全數)'; 
+            document.querySelectorAll('.box').forEach(el => el.classList.remove('box-active'));
+            apply(); 
+        }
+
+        function apply() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            const filtered = data.filter(i => {
+                const boxMatch = !currentBox || i['小方塊名稱'] === currentBox;
+                const searchMatch = !query || 
+                    (i['品名'] || '').toLowerCase().includes(query) || 
+                    (i['規格'] || '').toLowerCase().includes(query) || 
+                    (i['料號'] || '').toLowerCase().includes(query) ||
+                    (i['置物櫃存放位置'] || '').toLowerCase().includes(query); // Keep location search
+                return boxMatch && searchMatch;
+            });
+            render(filtered);
+        }
+
+        function render(items) {
+            grid.innerHTML = '';
+            document.getElementById('count').innerText = '找到 ' + items.length + ' 筆項目';
+            
+            if (items.length === 0) {
+                grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:4rem; color:#9ca3af; font-size:1.25rem;">⚠️ 未找到符合條件的物料</div>';
+                return;
+            }
+
+            items.forEach((i, idx) => {
+                const card = document.createElement('div'); 
+                card.className = 'card';
+                
+                // Dynamic Color Mapping from Config
+                let bg = '#ffffff', accent = '#cbd5e1';
+                const loc = (i['置物櫃存放位置'] || '');
+                
+                // Find matching layer in config
+                config.forEach(c => {
+                    c.layers.forEach(l => {
+                        if (loc.includes(l.lookup)) {
+                            bg = l.bgColor;
+                            accent = l.borderColor;
+                        }
+                    });
+                });
+                
+                card.style.backgroundColor = bg;
+                
+                // Construct inner content safely
+                const nameDiv = document.createElement('div'); nameDiv.className = 'item-name'; nameDiv.textContent = i['品名'];
+                
+                const pr = document.createElement('div'); pr.className = 'item-row'; 
+                pr.textContent = '料號: ' + (i['料號'] || '-');
+                const partRow = pr.outerHTML;
+
+                const specDiv = document.createElement('div'); specDiv.className = 'item-spec'; specDiv.textContent = i['規格'] || '';
+                
+                let noteDiv = '';
+                if(i['附註']) {
+                    const nd = document.createElement('div'); nd.className = 'item-note'; nd.textContent = '註 : ' + i['附註'];
+                    noteDiv = nd.outerHTML;
+                }
+
+                const badge = document.createElement('div'); badge.className = 'qty-badge'; badge.textContent = i['數量'] + ' ' + (i['單位'] || '');
+                const locTag = document.createElement('div'); locTag.className = 'loc-tag-dashed'; 
+                locTag.style.borderColor = accent;
+                // Split location by half-width or full-width comma and wrap in multiline display
+                const locHTML = i['置物櫃存放位置'].split(/[,，]+/).map(s => s.trim()).join('<br>📂 ');
+                locTag.innerHTML = '📂 ' + locHTML;
+                
+                card.onclick = () => {
+                   const boxName = i['小方塊名稱'] || '';
+                   setFilter(boxName);
+
+                   // Highlight effect
+                   document.querySelectorAll('.card').forEach(c => c.classList.remove('highlighted'));
+                   card.classList.add('highlighted');
+                };
+
+                const footer = document.createElement('div'); footer.className = 'card-footer';
+                
+                const actions = document.createElement('div'); actions.className = 'card-actions';
+                actions.innerHTML = `
+                    <button class="btn-action btn-withdraw" title="領取" onclick="event.stopPropagation(); updateQty('${i.ID}', -1)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path></svg>
+                        <span>領取</span>
+                    </button>
+                    <button class="btn-action btn-return" title="歸還" onclick="event.stopPropagation(); updateQty('${i.ID}', 1)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
+                        <span>歸還</span>
+                    </button>
+                `;
+
+                footer.appendChild(locTag);
+                footer.appendChild(actions);
+
+                card.appendChild(badge);
+                card.appendChild(nameDiv);
+                if(i['料號']) card.innerHTML += partRow;
+                card.appendChild(specDiv);
+                if(noteDiv) card.innerHTML += noteDiv;
+                card.appendChild(footer);
+                
+                grid.appendChild(card);
+            });
+        }
+
+        // Initialize
+        try {
+            build();
+            apply();
+            document.getElementById('searchInput').oninput = apply;
+        } catch (e) {
+            console.error('Initialization error:', e);
+            document.getElementById('count').innerHTML = '<span style="color:red">系統啟動失敗: ' + e.message + '</span>';
+        }
+    </script>
+</body>
+</html>
